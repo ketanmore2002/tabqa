@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: tabqa
+    buildCommand: "./build.sh"
+    env: python
+    startCommand: "gunicorn tabqa.wsgi:application"
