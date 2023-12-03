@@ -22,4 +22,5 @@ class logs(models.Model):
     time = models.TimeField(auto_now=True,blank=True,null=True)
     date = models.DateField(auto_now=True,blank=True,null=True)
     user_name = models.CharField(max_length=300,blank=True,null=True)
-    user_id = models.CharField(max_length=300,blank=True,null=True)
+    # user_id = models.CharField(max_length=300,blank=True,null=True)
+    response_time = models.CharField(max_length=300,blank=True,null=True)

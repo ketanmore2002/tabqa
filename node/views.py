@@ -4,6 +4,10 @@ import json
 import requests
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt 
+import time
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required 
+from django.contrib.admin.views.decorators import staff_member_required
 
 
 
@@ -16,11 +20,16 @@ def query_database_func(payload):
 
 # Create your views here.
 
-
+@staff_member_required
 def index (request):
-    data = logs.objects.filter(user_name = request.user.username,user_id = request.user.id)
+    data = logs.objects.filter(user_name = request.user.username)
     data2 = dataset.objects.filter(user_name = request.user.username,user_id = request.user.id)
-    return render(request , "index.html",{"data":data , "data2":data2})
+    date = logs.objects.filter(user_name = request.user.username).values_list("date",flat=True)
+    date = [date_object.strftime('%Y-%m-%d %H:%M:%S') for date_object in date]
+    response_time = logs.objects.filter(user_name = request.user.username).values_list("response_time",flat=True)
+    response_time = [float(time) for time in response_time]
+    # print("=====",response_time)
+    return render(request , "index.html",{"data":data , "data2":data2 , "date":date , "response_time":response_time})
 
 
 def datasets (request):
@@ -34,19 +43,23 @@ def developers (request):
 @csrf_exempt
 def query (request,uuid):
 
-    if requests.method == 'POST':
-        data = (dataset.objects.filter(uuid = uuid).first())
-        dict_data = json.loads(requests.body.decode('UTF-8'))
-        query_ = dict_data["query"]
-        output = query_database_func({
-            "inputs": {
-                "query": query_,
-                "table": json.loads(data.data)
-            },
-        })
-        logs.objects.create(data_uuid = data.uuid , query = query_ , user_name = request.user.username , user_id = request.user.id , answer = output['answer'])
-        print(requests.user.username)
-        return HttpResponse(output['answer'])
+    if request.method == 'POST':
+        dict_data = json.loads(request.body.decode('UTF-8'))
+        user = authenticate(request, username=dict_data["username"], password= dict_data["password"]) 
+        if user is not None:
+            start_time = time.time()
+            data = (dataset.objects.filter(uuid = uuid).first())
+            query_ = dict_data["query"]
+            output = query_database_func({
+                "inputs": {
+                    "query": query_,
+                    "table": json.loads(data.data)
+                },
+            })
+            end_time = time.time()
+            logs.objects.create(data_uuid = data.uuid , query = query_ , user_name = dict_data["username"], answer = output['answer'], response_time = round((end_time - start_time) * 1000, 2) )
+            print("========",request.user.username ,request.user.id )
+            return HttpResponse(output['answer'])
     
 
 def add_datasets(request):
@@ -62,3 +75,8 @@ def add_delete(request,uuid):
      dataset.objects.filter(uuid=uuid).delete()
      return redirect("/datasets")
 
+
+
+def login_v(request):
+    return render(request , "login.html")
+    
